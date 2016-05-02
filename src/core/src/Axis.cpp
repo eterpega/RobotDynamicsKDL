@@ -245,6 +245,12 @@ namespace iDynTree
         return ret;
     }
     
+    bool Axis::isParallel(const Axis& otherAxis, const double tolerance) const
+    {
+        return this->direction.isParallel(otherAxis.direction,tolerance);
+    }
+
+
     std::string Axis::toString() const
     {
         std::stringstream ss;

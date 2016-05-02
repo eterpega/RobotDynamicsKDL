@@ -120,6 +120,14 @@ namespace iDynTree
         SpatialAcc getTranslationSpatialAcc(const double d2dist) const;
 
         /**
+         * Check if two axes are parallel (i.e. their direction are parallel).
+         *
+         * @param otherAxis the axes to check for parallelism.
+         * @param tolerance tolerance to use in the parallelism check.
+         */
+        bool isParallel(const Axis & otherAxis, const double tolerance) const;
+
+        /**
          * @name Output helpers.
          *  Output helpers.
          */
