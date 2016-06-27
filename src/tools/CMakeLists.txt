@@ -41,7 +41,7 @@ if(IDYNTREE_USES_ICUB_MAIN AND IDYNTREE_USES_KDL)
   add_definitions(-D_USE_MATH_DEFINES)
   add_executable(urdf2dh urdf2dh)
   target_include_directories(urdf2dh PUBLIC ${ICUB_INCLUDE_DIRS} ${YARP_INCLUDE_DIRS})
-  target_link_libraries(urdf2dh iKin idyntree-core idyntree-regressors  idyntree-modelio-urdf-kdl idyntree-modelio-ikin)
+  target_link_libraries(urdf2dh iKin idyntree-core idyntree-regressors  idyntree-modelio-urdf-kdl idyntree-modelio-ikin-kdl)
   install(TARGETS urdf2dh DESTINATION bin)
 endif()
 
