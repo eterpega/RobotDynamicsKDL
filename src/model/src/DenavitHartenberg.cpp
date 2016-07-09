@@ -443,7 +443,8 @@ bool ExtractDHChainFromModel(const Model& model,
         reportError("","ExtractDHChainFromModel","Error in computing ForwardKinematics.");
     }
 
-    // Let's store all the axis in the baseFrame
+    // Step 1: Locate and label the joint axes z_0 , . . . , z_{nrOfDofs−1} .
+    // For simplicity, we express all the axes in the base frame
     size_t nrOFDHFrames = nrOfDofs+1;
     std::vector<iDynTree::Axis> zAxes(nrOFDHFrames);
     std::vector<iDynTree::Axis> xAxes(nrOFDHFrames);
