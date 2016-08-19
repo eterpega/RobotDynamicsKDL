@@ -1,0 +1,167 @@
+<robot name="papa">
+
+<!--URDF CODE-->
+<link name="world"/>
+  <!--Base Link is at the Origin-->
+  <link name="base_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="5"/>
+      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+    <!--Base Link Box-->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.3 0.05 0.05"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1.0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.3 0.05 0.05"/>
+      </geometry>
+    </collision>
+    <!--Base Link Small Box-->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0.025 -0.0125"/>
+      <geometry>
+        <box size="0.05 0.1 0.025"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1.0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0.025 -0.0125"/>
+      <geometry>
+        <box size="0.05 0.1 0.025"/>
+      </geometry>
+    </collision>
+    <!--Base Link Small Cylinder-->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0.075 -0.0125"/>
+      <geometry>
+        <cylinder length="0.025" radius="0.025"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1.0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0.075 -0.0125"/>
+      <geometry>
+        <cylinder length="0.025" radius="0.025"/>
+      </geometry>
+    </collision>
+  </link>
+  <!--First Link-->
+  <link name="first_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0.1375 0"/>
+      <mass value="2"/>
+      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+    <!--First Link Small Cylinder - Front -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.0125"/>
+      <geometry>
+        <cylinder length="0.025" radius="0.025"/>
+        <material name="white">
+          <color rgba="1.0 1.0 1.0 1.0"/>
+        </material>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.0125"/>
+      <geometry>
+        <cylinder length="0.025" radius="0.025"/>
+      </geometry>
+    </collision>
+    <!--First Link Small Box - Front -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0.05 0.0125"/>
+      <geometry>
+        <box size="0.05 0.1 0.025"/>
+        <material name="white">
+          <color rgba="1.0 1.0 1.0 1.0"/>
+        </material>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0.05 0.0125"/>
+      <geometry>
+        <box size="0.05 0.1 0.025"/>
+      </geometry>
+    </collision>
+    <!--First Link Box-->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0.15 0"/>
+      <geometry>
+        <box size="0.05 0.2 0.05"/>
+        <material name="white">
+          <color rgba="1.0 1.0 1.0 1.0"/>
+        </material>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0.15 0"/>
+      <geometry>
+        <box size="0.05 0.2 0.05"/>
+      </geometry>
+    </collision>
+    <!--First Link Small Box - Back -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0.25 -0.0125"/>
+      <geometry>
+        <box size="0.05 0.1 0.025"/>
+        <material name="white">
+          <color rgba="1.0 1.0 1.0 1.0"/>
+        </material>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0.25 -0.0125"/>
+      <geometry>
+        <box size="0.05 0.1 0.025"/>
+      </geometry>
+    </collision>
+    <!--First Link Small Cylinder - Back -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0.3 -0.0125"/>
+      <geometry>
+        <cylinder length="0.025" radius="0.025"/>
+        <material name="white">
+          <color rgba="1.0 1.0 1.0 1.0"/>
+        </material>
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0.3 -0.0125"/>
+      <geometry>
+        <cylinder length="0.025" radius="0.025"/>
+      </geometry>
+    </collision>
+  </link>
+
+<joint name="anchor" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0.55"/>
+    <axis xyz="0 0 0"/>
+  </joint>
+  <joint name="first_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="first_link"/>
+    <origin rpy="0 0 0.3925" xyz="0 0.075 0"/>
+    <axis xyz="0 0 1"/>
+    <calibration rising="1"/>
+    <dynamic damping="0.0" friction="0.0"/>
+    <limit effort="30" lower="-0.785" upper="0" velocity="1.0"/>
+    <safety_controller k_position="15" k_velocity="10" soft_lower_limit="-1.5" soft_upper_limit="1.5"/>
+  </joint>
+
+</robot>
