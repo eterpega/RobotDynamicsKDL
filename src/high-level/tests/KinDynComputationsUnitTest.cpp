@@ -96,8 +96,13 @@ void testAverageVelocityAndTotalMomentumJacobian(iDynTree::KinDynComputations & 
     iDynTree::VectorDynSize nu(dynComp.getNrOfDegreesOfFreedom()+6);
     dynComp.getModelVel(nu);
 
+<<<<<<< 6b3562a89bc13e5d0ba534e2b62965310886d19d
     MomentumFreeFloatingJacobian momJac(dynComp.getRobotModel());
     FrameFreeFloatingJacobian    avgVelJac(dynComp.getRobotModel());
+=======
+    MomentumJacobian momJac(dynComp.getRobotModel());
+    FrameJacobian    avgVelJac(dynComp.getRobotModel());
+>>>>>>> Implemented AverageVelocity and Total Momentum Jacobian
 
     avgVel = dynComp.getAverageVelocity();
     bool ok = dynComp.getAverageVelocityJacobian(avgVelJac);

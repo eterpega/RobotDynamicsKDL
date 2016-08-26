@@ -234,7 +234,6 @@ void KinDynComputations::computeRawMassMatrixAndTotalMomentum()
 
     reportErrorIf(!ok,"KinDynComputations::computeRawMassMatrix","Error in computing mass matrix.");
 
-
     // m_linkPos and m_linkVel are used in the computation of the total momentum
     // so we need to make sure that they are updated
     this->computeFwdKinematics();
