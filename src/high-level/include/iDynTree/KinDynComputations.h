@@ -475,19 +475,24 @@ public:
 
 
     /**
-      * @name Methods to get quantities related to dynamics matrices.
+      * @name Methods to get quantities related to unconstrained free floating dynamics.
       */
     //@{
-
-
-
-    //@}
 
     /**
-      * @name Methods to unconstrained free floating dynamics.
-      */
-    //@{
+     * Get the free floating mass matrix of the model.
+     *
+     * The structure of this matrix (in particular its first six rows and six columns)
+     * depends on the selected FrameVelocityRepresentation .
+     *
+     * @return true if all went ok, false otherwise.
+     */
+    bool getFreeFloatingMassMatrix(MatrixDynSize & freeFloatingMassMatrix);
 
+    bool computeFreeFloatingInverseDynamics(const Vector6 & baseAcc,
+                                            const VectorDynSize & jointAcc,
+                                                  Wrench & baseWrench,
+                                                  VectorDynSize & jointTrqs);
 
     //@}
 

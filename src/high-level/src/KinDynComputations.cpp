@@ -104,6 +104,9 @@ public:
     // storage of forward velocity kinematics results
     iDynTree::LinkVelArray m_linkVel;
 
+    // Flag true if the ram mass matrix has been
+    // compute since the last call to setRobotState,
+    // false otherwise
     bool m_isRawMassMatrixUpdated;
 
     // storage of the CRBs, used to extract
@@ -117,12 +120,29 @@ public:
     void processOnLeftSideBodyFixedBaseJacobian(MatrixDynSize & jac);
     void processOnLeftSideBodyFixedBaseMomentumJacobian(MatrixDynSize & jac);
 
+    // Process a massmatrix that expects and outputs base quantities in the body fixed representation
+    // depending on the selected FrameVelocityRepresentation
+    void processOnRightSideBodyFixedMassMatrix(MatrixDynSize & massMat);
+    void processOnLeftSideBodyFixedMassMatrix(MatrixDynSize & massMat);
+
+    // Process the input baseAcc / output baseWrench for inverse dynamics and similar computations
+    SpatialAcc processInputBaseAccInvDyn(const Vector6 & inputBaseAcc);
+    Wrench processOutputBaseWrenchInvDyn(const Wrench & baseWrench);
+
     // storage of the raw output of the CRBA, used to extract
     // the mass matrix and most the centroidal quantities
     FreeFloatingMassMatrix m_rawMassMatrix;
 
     // Total linear and angular momentum, expressed in the world frame
     SpatialMomentum m_totalMomentum;
+
+    // Inverse dyanmics buffers
+    FreeFloatingAcc m_invDyn_modelProperAcc;
+    LinkVelArray    m_invDyn_linksVel;
+    LinkProperAccArray   m_invDyn_linksProperAcc;
+    LinkNetExternalWrenches  m_invDyn_nullExtWrenches;
+    LinkInternalWrenches    m_invDyn_internalWrenches;
+    FreeFloatingGeneralizedTorques m_invDyn_outputTorques;
 
     KinDynComputationsPrivateAttributes()
     {
@@ -184,6 +204,14 @@ void KinDynComputations::resizeInternalDataStructures()
     this->pimpl->m_linkVel.resize(this->pimpl->m_robot_model);
     this->pimpl->m_linkCRBIs.resize(this->pimpl->m_robot_model);
     this->pimpl->m_rawMassMatrix.resize(this->pimpl->m_robot_model);
+
+    // Inverse dynamics buffers
+    this->pimpl->m_invDyn_linksVel.resize(this->pimpl->m_robot_model);
+    this->pimpl->m_invDyn_linksProperAcc.resize(this->pimpl->m_robot_model);
+    this->pimpl->m_invDyn_modelProperAcc.resize(this->pimpl->m_robot_model);
+    this->pimpl->m_invDyn_nullExtWrenches.resize(this->pimpl->m_robot_model);
+    this->pimpl->m_invDyn_internalWrenches.resize(this->pimpl->m_robot_model);
+    this->pimpl->m_invDyn_outputTorques.resize(this->pimpl->m_robot_model);
 }
 
 int KinDynComputations::getFrameIndex(const std::string& frameName) const
@@ -928,6 +956,129 @@ void KinDynComputations::KinDynComputationsPrivateAttributes::processOnLeftSideB
     toEigen(jac) = toEigen(newOutputFrame_X_oldOutputFrame_)*toEigen(jac);
 }
 
+void KinDynComputations::KinDynComputationsPrivateAttributes::processOnRightSideBodyFixedMassMatrix(MatrixDynSize& massMatrix)
+{
+    // To change the representation of the mass matrix on the right side
+    // first six columns must be multiplied for the appropriate transformation matrix
+    // TODO: refactor to unify with processOnRightSideBodyFixedJacobian
+    assert(jac.rows() == 6);
+    assert(jac.cols() == m_robot_model.getNrOfDOFs()+6);
+
+    Transform baseFrame_X_newJacobBaseFrame;
+    if (m_frameVelRepr == BODY_FIXED_REPRESENTATION)
+    {
+        return;
+    }
+    else if (m_frameVelRepr == MIXED_REPRESENTATION)
+    {
+        Transform base_X_world = (m_linkPos(m_traversal.getBaseLink()->getIndex())).inverse();
+        baseFrame_X_newJacobBaseFrame = Transform(base_X_world.getRotation(),Position::Zero());
+    }
+    else
+    {
+        assert(m_frameVelRepr == INERTIAL_FIXED_REPRESENTATION);
+        Transform world_X_base = (m_linkPos(m_traversal.getBaseLink()->getIndex()));
+        baseFrame_X_newJacobBaseFrame = world_X_base.inverse();
+    }
+
+    Matrix6x6 baseFrame_X_newJacobBaseFrame_ = baseFrame_X_newJacobBaseFrame.asAdjointTransform();
+
+    toEigen(massMatrix).block(0,0,6+m_robot_model.getNrOfDOFs(),6) =
+        toEigen(massMatrix).block(0,0,6+m_robot_model.getNrOfDOFs(),6)*toEigen(baseFrame_X_newJacobBaseFrame_);
+}
+
+void KinDynComputations::KinDynComputationsPrivateAttributes::processOnLeftSideBodyFixedMassMatrix(MatrixDynSize& massMatrix)
+{
+    // To change the representation of the mass matrix on the left side
+    // first six rows must be multiplied for the appropriate transformation matrix
+    assert(jac.rows() == 6);
+    assert(jac.cols() == m_robot_model.getNrOfDOFs()+6);
+
+    Transform newOutputFrame_X_oldOutputFrame;
+    if (m_frameVelRepr == BODY_FIXED_REPRESENTATION)
+    {
+        return;
+    }
+    else if (m_frameVelRepr == MIXED_REPRESENTATION)
+    {
+        Transform & world_X_base = m_pos.worldBasePos();
+        newOutputFrame_X_oldOutputFrame = Transform(world_X_base.getRotation(),Position::Zero());
+    }
+    else
+    {
+        assert(m_frameVelRepr == INERTIAL_FIXED_REPRESENTATION);
+        newOutputFrame_X_oldOutputFrame = m_pos.worldBasePos();
+    }
+
+    Matrix6x6 newOutputFrame_X_oldOutputFrame_ = newOutputFrame_X_oldOutputFrame.asAdjointTransformWrench();
+
+    toEigen(massMatrix).block(0,0,6,m_robot_model.getNrOfDOFs()+6) =
+    toEigen(newOutputFrame_X_oldOutputFrame_)*toEigen(massMatrix).block(0,0,6,m_robot_model.getNrOfDOFs()+6);
+}
+
+SpatialAcc KinDynComputations::KinDynComputationsPrivateAttributes::processInputBaseAccInvDyn(const Vector6 & inputBaseAcc)
+{
+    Transform base_X_ReprDependentFrame;
+    SpatialAcc baseAcc;
+
+    Transform baseFrame_X_newJacobBaseFrame;
+    if (m_frameVelRepr == BODY_FIXED_REPRESENTATION)
+    {
+        fromEigen(baseAcc,toEigen(inputBaseAcc));
+    }
+    else if (m_frameVelRepr == MIXED_REPRESENTATION)
+    {
+        // Note that converting the mixed acceleration of the base to the
+        // body-fixed acceleration of the base introduces a dependency on the
+        // base angular velocity.
+        // Using Featherstone nomenclature, it is a conversion from a "classical acceleration"
+        // to a "spatial one"
+
+        ClassicalAcc baseClassicalAccWithWorldOrientation, baseClassicalAccWithBaseOrientation;
+        toEigen(baseClassicalAccWithWorldOrientation) = toEigen(inputBaseAcc);
+
+        // Rotate
+        Transform & world_X_base = (m_linkPos(m_traversal.getBaseLink()->getIndex()));
+
+        baseClassicalAccWithBaseOrientation = baseClassicalAccWithWorldOrientation;
+        baseClassicalAccWithBaseOrientation.changeCoordFrame(world_X_base.getRotation().inverse());
+
+        // Convert from "classical" to "spatial"
+        // TODO : Write it in more clear way
+        baseClassicalAccWithBaseOrientation.toSpatial(baseAcc,m_vel.baseVel());
+    }
+    else
+    {
+        assert(m_frameVelRepr == INERTIAL_FIXED_REPRESENTATION);
+        SpatialAcc baseAccInWorld;
+        fromEigen(baseAccInWorld,toEigen(inputBaseAcc));
+        Transform & world_X_base = (m_linkPos(m_traversal.getBaseLink()->getIndex()));
+        baseAcc = world_X_base.inverse()*baseAccInWorld;
+    }
+
+    return baseAcc;
+}
+
+Wrench KinDynComputations::KinDynComputationsPrivateAttributes::processOutputBaseWrenchInvDyn(const Wrench & baseWrench)
+{
+    Transform newOutputFrame_X_oldOutputFrame;
+    if (m_frameVelRepr == BODY_FIXED_REPRESENTATION)
+    {
+        return baseWrench;
+    }
+    else if (m_frameVelRepr == MIXED_REPRESENTATION)
+    {
+        Transform & world_X_base = m_pos.worldBasePos();
+        newOutputFrame_X_oldOutputFrame = Transform(world_X_base.getRotation(),Position::Zero());
+    }
+    else
+    {
+        assert(m_frameVelRepr == INERTIAL_FIXED_REPRESENTATION);
+        newOutputFrame_X_oldOutputFrame = m_pos.worldBasePos();
+    }
+
+    return newOutputFrame_X_oldOutputFrame*baseWrench;
+}
 
 Twist KinDynComputations::getAverageVelocity()
 {
@@ -1006,6 +1157,72 @@ bool KinDynComputations::getLinearAngularMomentumJacobian(MatrixDynSize& linAngM
     // Handle the different representations
     pimpl->processOnRightSideBodyFixedJacobian(linAngMomentumJacobian);
     pimpl->processOnLeftSideBodyFixedBaseMomentumJacobian(linAngMomentumJacobian);
+
+    return true;
+}
+
+bool KinDynComputations::getFreeFloatingMassMatrix(MatrixDynSize & freeFloatingMassMatrix)
+{
+    this->computeRawMassMatrixAndTotalMomentum();
+
+    // If the matrix already has the right size, this does not do anything
+    freeFloatingMassMatrix.resize(pimpl->m_robot_model.getNrOfDOFs()+6,pimpl->m_robot_model.getNrOfDOFs()+6);
+
+    // Copy the raw (that assume body fixed quantities) mass matrix
+    toEigen(freeFloatingMassMatrix) = toEigen(pimpl->m_rawMassMatrix);
+
+    // Process the mass matrix depending on the selected frame representation
+    pimpl->processOnRightSideBodyFixedMassMatrix(freeFloatingMassMatrix);
+    pimpl->processOnLeftSideBodyFixedMassMatrix(freeFloatingMassMatrix);
+
+    return true;
+}
+
+bool KinDynComputations::computeFreeFloatingInverseDynamics(const Vector6 & baseAcc,
+                                                            const VectorDynSize & jointAcc,
+                                                                  Wrench & baseWrench,
+                                                                  VectorDynSize & jointTrqs)
+{
+    // Check the input size
+    if (pimpl->m_robot_model.getNrOfDOFs() != jointTrqs.size())
+    {
+        reportError("KinDynComputations","computeFreeFloatingInverseDynamics","Wrong size of joint torques output vector");
+        return false;
+    }
+
+    // If the vector already has the right size, this is a NOP
+    jointTrqs.resize(pimpl->m_robot_model.getNrOfDOFs());
+
+    // We process the base acceleration, depending on the selected frame velocity representation
+    // to get the base proper acceleration expressed in body-fixed coordiantes
+    SpatialAcc baseProperAccInBody = pimpl->processInputBaseAccInvDyn(baseAcc);
+
+    // We compute the inverse dynamics
+    // Note that we are ignoring the already computed buffers of link velocity
+    // Using the link velocity could improve performances
+    ForwardVelAccKinematics(pimpl->m_robot_model,
+                            pimpl->m_traversal,
+                            pimpl->m_pos,
+                            pimpl->m_vel,
+                            pimpl->m_invDyn_modelProperAcc,
+                            pimpl->m_invDyn_linksVel,
+                            pimpl->m_invDyn_linksProperAcc);
+
+    RNEADynamicPhase(pimpl->m_robot_model,
+                     pimpl->m_traversal,
+                     pimpl->m_pos.jointPos(),
+                     pimpl->m_invDyn_linksVel,
+                     pimpl->m_invDyn_linksProperAcc,
+                     pimpl->m_invDyn_nullExtWrenches,
+                     pimpl->m_invDyn_internalWrenches,
+                     pimpl->m_invDyn_outputTorques);
+
+
+    // Process the base wrench depending on the selected frame velocity representation
+    baseWrench = pimpl->processOutputBaseWrenchInvDyn(pimpl->m_invDyn_outputTorques.baseWrench());
+
+    // Copy the output joint torques
+    jointTrqs = pimpl->m_invDyn_outputTorques.jointTorques();
 
     return true;
 }

@@ -27,9 +27,9 @@ namespace iDynTree
 {
 
 bool ComputeLinearAndAngularMomentum(const Model& model,
-                                const LinkPositions& linkPositions,
-                                const LinkVelArray& linkVels,
-                                      SpatialMomentum& totalMomentum)
+                                     const LinkPositions& linkPositions,
+                                     const LinkVelArray& linkVels,
+                                           SpatialMomentum& totalMomentum)
 {
     totalMomentum.zero();
 
@@ -49,9 +49,9 @@ bool RNEADynamicPhase(const Model& model, const Traversal& traversal,
                       const JointPosDoubleArray& jointPos,
                       const LinkVelArray& linksVels,
                       const LinkAccArray& linksAccs,
-                      const LinkNetExternalWrenches& fext,
-                      LinkInternalWrenches& f,
-                      FreeFloatingGeneralizedTorques& baseWrenchJntTorques)
+                      const LinkNetExternalWrenches& linkExtForces,
+                      LinkInternalWrenches& linkIntWrenches,
+                      FreeFloatingGeneralizedTorques& baseForceAndJointTorques)
 {
     bool retValue = true;
 
@@ -71,7 +71,7 @@ bool RNEADynamicPhase(const Model& model, const Traversal& traversal,
         const iDynTree::SpatialInertia & I = visitedLink->getInertia();
         const iDynTree::SpatialAcc     & a = linksAccs(visitedLinkIndex);
         const iDynTree::Twist          & v = linksVels(visitedLinkIndex);
-        f(visitedLinkIndex) = I*a + v*(I*v) - fext(visitedLinkIndex);
+        linkIntWrenches(visitedLinkIndex) = I*a + v*(I*v) - linkExtForces(visitedLinkIndex);
 
         // Iterate on childs of visitedLink
         // We obtain all the children as all the neighbors of the link, except
@@ -90,7 +90,7 @@ bool RNEADynamicPhase(const Model& model, const Traversal& traversal,
                  const Transform & visitedLink_X_child = neighborJoint->getTransform(jointPos,visitedLinkIndex,childIndex);
 
                  // One term of the sum in Equation 5.20 in Featherstone 2008
-                 f(visitedLinkIndex) = f(visitedLinkIndex) + visitedLink_X_child*f(childIndex);
+                 linkIntWrenches(visitedLinkIndex) = linkIntWrenches(visitedLinkIndex) + visitedLink_X_child*linkIntWrenches(childIndex);
              }
         }
 
@@ -104,7 +104,7 @@ bool RNEADynamicPhase(const Model& model, const Traversal& traversal,
             // Notice that this force, if the model, the accelerations and the external wrenches
             // are coherent, should be zero. This because any external wrench on the base should
             // be present also in the fExt vector .
-            baseWrenchJntTorques.baseWrench() = -f(visitedLinkIndex);
+            baseForceAndJointTorques.baseWrench() = -linkIntWrenches(visitedLinkIndex);
         }
         else
         {
@@ -113,10 +113,10 @@ bool RNEADynamicPhase(const Model& model, const Traversal& traversal,
             // This is Equation 5.13 in Featherstone 2008. It is offloaded to the joint to be
             // able to deal with different kind of joints.
             toParentJoint->computeJointTorque(jointPos,
-                                              f(visitedLinkIndex),
+                                              linkIntWrenches(visitedLinkIndex),
                                               parentLink->getIndex(),
                                               visitedLinkIndex,
-                                              baseWrenchJntTorques.jointTorques());
+                                              baseForceAndJointTorques.jointTorques());
         }
     }
 

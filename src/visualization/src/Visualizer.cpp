@@ -51,8 +51,8 @@ ColorViz::ColorViz(float _r, float _g, float _b, float _a): r(_r), g(_g), b(_b),
 
 ColorViz::ColorViz(const Vector4& rgba): r(rgba(0)), g(rgba(1)), b(rgba(2)), a(rgba(3))
 {
-
 }
+
 
 struct Visualizer::VisualizerPimpl
 {

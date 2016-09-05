@@ -43,14 +43,14 @@ namespace iDynTree
                                          const LinkVelArray&  linkVels,
                                                SpatialMomentum& totalMomentum);
 
-    bool RNEADynamicPhase(const iDynTree::Model & model,
-                          const iDynTree::Traversal & traversal,
-                          const iDynTree::JointPosDoubleArray & jointPos,
-                          const iDynTree::LinkVelArray & linksVel,
-                          const iDynTree::LinkAccArray & linksAcc,
-                          const iDynTree::LinkNetExternalWrenches & linkExtForces,
-                          iDynTree::LinkInternalWrenches       & linkIntWrenches,
-                          iDynTree::FreeFloatingGeneralizedTorques & baseForceAndJointTorques);
+    bool RNEADynamicPhase(const Model & model,
+                          const Traversal & traversal,
+                          const JointPosDoubleArray & jointPos,
+                          const LinkVelArray & linksVel,
+                          const LinkAccArray & linksAcc,
+                          const LinkNetExternalWrenches & linkExtForces,
+                                LinkInternalWrenches       & linkIntWrenches,
+                                FreeFloatingGeneralizedTorques & baseForceAndJointTorques);
 
     /**
      * Compute the floating base mass matrix, using the
