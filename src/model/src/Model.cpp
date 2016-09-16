@@ -59,6 +59,10 @@ void Model::copy(const Model& other)
     // Copy the solid shapes
     this->m_collisionSolidShapes = other.m_collisionSolidShapes;
     this->m_visualSolidShapes    = other.m_visualSolidShapes;
+
+    // Copy the limits
+    this->m_jointMaxLimits       = other.m_jointMaxLimits;
+    this->m_jointMinLimits       = other.m_jointMinLimits;
 }
 
 
@@ -95,6 +99,8 @@ void Model::destroy()
     additionalFramesLinks.resize(0);
     frameNames.resize(0);
     neighbors.resize(0);
+    m_jointMinLimits.resize(0);
+    m_jointMaxLimits.resize(0);
 }
 
 Model::~Model()
@@ -328,8 +334,21 @@ JointIndex Model::addJoint(const std::string& jointName, IJointConstPtr joint)
     this->joints[thisJointIndex]->setDOFsOffset(this->nrOfDOFs);
 
     // Update the number of dofs
-    this->nrOfPosCoords += this->joints[thisJointIndex]->getNrOfPosCoords();
-    this->nrOfDOFs += this->joints[thisJointIndex]->getNrOfDOFs();
+    size_t jntPosCoords = this->joints[thisJointIndex]->getNrOfPosCoords();
+    size_t jntDofs = this->joints[thisJointIndex]->getNrOfDOFs();
+
+    this->nrOfPosCoords += jntPosCoords;
+    this->nrOfDOFs += jntDofs;
+
+    // Update the limits vector
+    this->m_jointMinLimits.resize(this->nrOfPosCoords);
+    this->m_jointMaxLimits.resize(this->nrOfPosCoords);
+
+    for(int i=1; i <= jntPosCoords; i++)
+    {
+        m_jointMinLimits(this->nrOfPosCoords-i) = - std::numeric_limits<double>::infinity();
+        m_jointMaxLimits(this->nrOfPosCoords-i) = std::numeric_limits<double>::infinity();
+    }
 
     return thisJointIndex;
 }
@@ -517,6 +536,31 @@ Neighbor Model::getNeighbor(const LinkIndex link, unsigned int neighborIndex) co
     return this->neighbors[link][neighborIndex];
 }
 
+void Model::getLimits(VectorDynSize& min, VectorDynSize& max) const
+{
+    min = this->m_jointMinLimits;
+    max = this->m_jointMaxLimits;
+}
+
+bool Model::setLimits(const VectorDynSize& min, const VectorDynSize& max)
+{
+    if( min.size() != this->m_jointMinLimits.size() )
+    {
+        reportError("Model","setLimits","Error in size of input min vector");
+        return false;
+    }
+
+    if( max.size() != this->m_jointMaxLimits.size() )
+    {
+        reportError("Model","setLimits","Error in size of input max vector");
+        return false;
+    }
+
+    this->m_jointMinLimits = min;
+    this->m_jointMaxLimits = max;
+}
+
+
 bool Model::setDefaultBaseLink(const LinkIndex linkIndex)
 {
     if( linkIndex < 0 || linkIndex >= (LinkIndex) this->getNrOfLinks() )
@@ -677,11 +721,6 @@ const ModelSolidShapes& Model::collisionSolidShapes() const
 {
     return m_collisionSolidShapes;
 }
-
-
-
-
-
 
 std::string Model::toString() const
 {

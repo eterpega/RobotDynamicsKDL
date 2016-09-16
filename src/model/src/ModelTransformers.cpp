@@ -408,6 +408,10 @@ bool createReducedModel(const Model& fullModel,
     // reduction: we need to account for that
     size_t nrOfJointsInReducedModel = jointsInReducedModel.size();
 
+    // We store the original limits to copy them in the reduced model
+    VectorDynSize fullMinLim, fullMaxLim;
+    fullModel.getLimits(fullMinLim,fullMaxLim);
+
     for(size_t jointInReducedModel = 0;
                jointInReducedModel < nrOfJointsInReducedModel;
                jointInReducedModel++)
@@ -468,6 +472,24 @@ bool createReducedModel(const Model& fullModel,
         }
 
         reducedModel.addJoint(jointName,newJoint);
+
+        // Reduced model limits
+        VectorDynSize reducedMin, reducedMax;
+        reducedModel.getLimits(reducedMin,reducedMax);
+
+        // Copy limits from full model to the reduced model
+        size_t jntPosCoords = newJoint->getNrOfPosCoords();
+        size_t ReducedModelOffset = newJoint->getPosCoordsOffset();
+        size_t FullModelOffset    = fullModel.getJoint(fullModel.getJointIndex(jointName))->getPosCoordsOffset();
+
+        assert(newJoint.getNrOfPosCoords() == fullModel.getJoint(fullModel.getJointIndex(jointName))->getNrOfPosCoords());
+        for(int i=0; i < jntPosCoords; i++)
+        {
+            reducedMin(ReducedModelOffset+i) = fullMinLim(FullModelOffset+i);
+            reducedMax(ReducedModelOffset+i) = fullMaxLim(FullModelOffset+i);
+        }
+
+        reducedModel.setLimits(reducedMin,reducedMax);
 
         // The pointer is cloned in the addJoint call,
         // we need to delete the one that we allocated ourself

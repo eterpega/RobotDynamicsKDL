@@ -12,6 +12,8 @@
 #include <iDynTree/Model/Link.h>
 #include <iDynTree/Core/Transform.h>
 
+#include <iDynTree/Core/VectorDynSize.h>
+
 #include <iDynTree/Model/Indeces.h>
 #include <iDynTree/Model/SolidShapes.h>
 
@@ -125,6 +127,20 @@ namespace iDynTree
          *  This is just the sum of all the getNrOfDOFs of the joint in the model.
          */
         unsigned int nrOfDOFs;
+
+        /**
+         * Vector of max position limits of the robot.
+         *
+         * TODO: How to handle not simply joints (such as unlimited joints?).
+         */
+        VectorDynSize m_jointMinLimits;
+
+        /**
+         * Vector of max position limits of the robot.
+         *
+         * TODO: How to handle not simply joints (such as unlimited joints?).
+         */
+        VectorDynSize m_jointMaxLimits;
 
         /**
          * Solid shapes used for visualization.
@@ -366,6 +382,24 @@ namespace iDynTree
          * >= 0 and <= getNrOfNeighbors(link)
          */
         Neighbor getNeighbor(const LinkIndex link, unsigned int neighborIndex) const;
+
+        /**
+         * Set the vectors of joint limits.
+         *
+         * @param[in] min vector of minimum position of the joints, of size getNrOfPosCoords
+         * @param[in] max vector of maximum position of the joints, of size getNrOfPosCoords
+         * @return true if all went well, false otherwise.
+         */
+        bool setLimits(const VectorDynSize & min, const VectorDynSize & max);
+
+        /**
+         * Get the vectors of joint limits.
+         *
+         * @param[out] min vector of minimum position of the joints, of size getNrOfPosCoords
+         * @param[out] max vector of maximum position of the joints, of size getNrOfPosCoords
+         * @note If necessary, this method will resize the input vectors.
+         */
+        void getLimits(VectorDynSize & min, VectorDynSize & max) const;
 
         /**
          * Set the default base link, used for generation of the default traversal.
