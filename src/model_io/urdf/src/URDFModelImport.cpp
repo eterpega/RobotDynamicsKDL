@@ -26,6 +26,7 @@
 #include <iostream>
 #include <fstream>
 #include <set>
+#include <limits>
 
 #include "URDFParsingUtils.h"
 
@@ -186,7 +187,9 @@ bool jointFromURDFXML(const Model & model,
                       std::string & jointName,
                       std::string & parentLinkName,
                       std::string & childLinkName,
-                      std::string & jointType)
+                      std::string & jointType,
+                      double      & lowerPosLimit,
+                      double      & upperPosLimit)
 {
     // reset p_joint
     p_joint = 0;
@@ -325,32 +328,53 @@ bool jointFromURDFXML(const Model & model,
                                     parent_T_joint,parent_T_joint*axis_wrt_childLink);
     }
 
-    assert(p_joint != 0);
-    return true;
-
     // Get limit
-    /*
-    TiXmlElement *limit_xml = config->FirstChildElement("limit");
+    TiXmlElement *limit_xml = jointXml->FirstChildElement("limit");
     if (limit_xml)
     {
-        resetPtr(joint.limits,new JointLimits());
-        if (!parseJointLimits(*joint.limits, limit_xml))
+        if( type_str != "revolute" && type_str != "prismatic" )
         {
-        logError("Could not parse limit element for joint [%s]", joint.name.c_str());
-        resetPtr(joint.limits);
-        return false;
+            reportWarning("","jointFromURDFXML","limit tag found on joint of type different from revolute or prismatic");
         }
+
+        const char * upperLimAttr = limit_xml->Attribute("upper");
+
+        if (upperLimAttr)
+        {
+            std::string upperLimAttrCPP(upperLimAttr);
+            stringToDouble(upperLimAttrCPP,upperPosLimit);
+        }
+        else
+        {
+            // If uppwer limit is not defined, default is 0
+            // see http://wiki.ros.org/urdf/XML/joint
+            upperPosLimit = 0.0;
+        }
+
+        const char * lowerLimAttr = limit_xml->Attribute("lower");
+
+        if (lowerLimAttr)
+        {
+            std::string lowerLimAttrCPP(upperLimAttr);
+            stringToDouble(lowerLimAttrCPP,lowerPosLimit);
+        }
+        else
+        {
+            // If lower limit is not defined, default is 0
+            // see http://wiki.ros.org/urdf/XML/joint
+            lowerPosLimit = 0.0;
+        }
+
     }
-    else if (joint.type == Joint::REVOLUTE)
+    else
     {
-        logError("Joint [%s] is of type REVOLUTE but it does not specify limits", joint.name.c_str());
-        return false;
+        // If now limit element is found, by default the limits are +/- inf
+        lowerPosLimit = -std::numeric_limits<double>::infinity();
+        upperPosLimit =  std::numeric_limits<double>::infinity();
     }
-    else if (joint.type == Joint::PRISMATIC)
-    {
-        logError("Joint [%s] is of type PRISMATIC without limits", joint.name.c_str());
-        return false;
-    }*/
+
+    assert(p_joint != 0);
+    return true;
 }
 
 
@@ -571,8 +595,8 @@ bool modelFromURDFString(const std::string& urdf_string,
         std::string parentLinkName;
         std::string childLinkName;
         std::string jointType;
-
-        ok = ok && jointFromURDFXML(rawModel,joint_xml,joint,jointName,parentLinkName,childLinkName,jointType);
+        double upperPosLimit,lowerPosLimit;
+        ok = ok && jointFromURDFXML(rawModel,joint_xml,joint,jointName,parentLinkName,childLinkName,jointType,lowerPosLimit,upperPosLimit);
 
         // save parent and child in a set
         parents.insert(parentLinkName);
@@ -690,6 +714,7 @@ bool modelFromURDFString(const std::string& urdf_string,
     // Parse visual and collision geometries
     ok = ok && solidShapesFromURDFString(urdf_string,options.originalFilename,model,"visual",model.visualSolidShapes());
     ok = ok && solidShapesFromURDFString(urdf_string,options.originalFilename,model,"collision",model.collisionSolidShapes());
+
 
     return ok;
 }
