@@ -60,13 +60,13 @@ const iDynTree::DHLink& iDynTree::DHChain::operator()(const size_t i) const
 }
 
 bool DHChain::fromModel(const Model& model,
-                        const std::string baseFrame,
-                        const std::string eeFrame)
+                        std::string baseFrame,
+                        std::string eeFrame)
 {
     return ExtractDHChainFromModel(model,baseFrame,eeFrame,*this);
 }
 
-bool DHChain::toModel(Model& outputModel)
+bool DHChain::toModel(Model& outputModel) const
 {
     return CreateModelFromDHChain(*this,outputModel);
 }
@@ -99,16 +99,6 @@ Transform TransformFromDH(double a,double alpha,double d,double theta)
                                   st,     ct*ca,  -ct*sa,
                                    0,        sa,      ca   ),
                          Position(a*ct,      a*st,  d));
-}
-
-/**
- * Check if two axes are incident (i.e. they share at least a point).
- */
-bool checkIfAxesAreIncident(const iDynTree::Axis line_A,
-                            const iDynTree::Axis link_B,
-                                  double tol=1e-6)
-{
-//    TODO
 }
 
 /**
@@ -176,6 +166,58 @@ bool closestPoints(const iDynTree::Axis line_A,
 }
 
 /**
+ * Check if two axes are incident (i.e. they share at least a point).
+ */
+bool checkIfAxesAreIncident(const iDynTree::Axis line_A,
+                            const iDynTree::Axis line_B,
+                                  double tol=1e-6)
+{
+    Position closest_point_line_A, closest_point_line_B;
+    bool areAxesNotParallel = closestPoints(line_A, line_B, closest_point_line_A, closest_point_line_B);
+
+    if (areAxesNotParallel)
+    {
+        bool arePointCoincident = ((toEigen(closest_point_line_A)-toEigen(closest_point_line_B)).norm() < tol);
+
+        return arePointCoincident;
+    }
+    else
+    {
+        // If the axes are parallel, the axes are incident if they are coincident
+        // In particular, they are coincident either if the origin are coincident
+        // or if the difference between the origin is parallel as well
+        bool areOriginCoincident = ((toEigen(line_A.getOrigin())-toEigen(line_B.getOrigin())).norm() < tol);
+
+        if (areOriginCoincident)
+        {
+            return true;
+        }
+
+        Direction originDiffDirection;
+        toEigen(originDiffDirection) = (toEigen(line_A.getOrigin())-toEigen(line_B.getOrigin())).normalized();
+
+        bool areAxisCoincident = originDiffDirection.isParallel(line_A.getDirection(),tol);
+
+        return areAxisCoincident;
+    }
+}
+
+/**
+ * Check if two axes are coincident (i.e. they contains the same points).
+ */
+bool checkIfAxesAreCoincident(const iDynTree::Axis line_A,
+                              const iDynTree::Axis link_B,
+                                  double tol=1e-6)
+{
+    bool areAxesIncident = checkIfAxesAreIncident(line_A, link_B, tol);
+    bool areDirectionParallel = line_A.getDirection().isParallel(link_B.getDirection(), tol);
+    std::cerr << "areAxesIncident " << areAxesIncident << std::endl;
+    std::cerr << "areDirectionParallel " << areDirectionParallel << std::endl;
+
+    return areAxesIncident && areDirectionParallel;
+}
+
+/**
  * Given two lines, find the dh parameters that describe  the transformation between the two axis
  *                  and return the origin and the x,y axis of the DH reference frame
  *                  (run step 3,4,5,7 of section 3.2.3 of
@@ -194,7 +236,6 @@ bool closestPoints(const iDynTree::Axis line_A,
  * @param[out] yAxis_i y axis of the i-th frame, output of this function.
  * @param[out] dhParams dh params of i-th frame, output of this function.
  */
-/*
 bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
                  const iDynTree::Axis xAxis_i_minus_1,
                  const iDynTree::Position origin_i_minus_1,
@@ -207,6 +248,8 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
                        double tol = 1e-6,
                        int verbose = 0)
 {
+    std::cerr << "zAxis_i_minus_1 " << zAxis_i_minus_1.toString() << std::endl;
+    std::cerr << "zAxis_i " << zAxis_i.toString() << std::endl;
 
     // STEP 3 : Locate O_i (the origin of i-th frame)
     //          Locate the origin O_i where the common normal to z_i and z_{i-1} intersects
@@ -239,6 +282,9 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
     xAxis_i.setOrigin(origin_i);
     yAxis_i.setOrigin(origin_i);
 
+    std::cerr << "zAxis_i_minus_1 " << zAxis_i_minus_1.toString() << std::endl;
+    std::cerr << "zAxis_i " << zAxis_i.toString() << std::endl;
+
     //
     // We check if z_i and z_i-1 are incident
     //
@@ -246,6 +292,10 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
 
     bool zAxes_coincident = checkIfAxesAreCoincident(zAxis_i_minus_1,zAxis_i);
 
+    std::cerr << "zAxis_i_minus_1 " << zAxis_i_minus_1.toString() << std::endl;
+    std::cerr << "zAxis_i " << zAxis_i.toString() << std::endl;
+    std::cerr << "zAxes_incident: " << zAxes_incident << std::endl;
+    std::cerr << "zAxes_coincident: " << zAxes_coincident << std::endl;
 
     //STEP 4 : Establish the direction of x axis of the i-th frame
     //         Establish x_i along the common normal between z_{i-1} and z_i throught O_i,
@@ -308,6 +358,8 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
             Eigen::Vector3d direction_axis_z_i_eig = toEigen(direction_axis_z_i);
             Eigen::Vector3d x_i_candidate_eig = toEigen(xAxis_n_direction_hint)- toEigen(xAxis_n_direction_hint).dot(direction_axis_z_i_eig)*direction_axis_z_i_eig;
 
+            std::cerr << x_i_candidate_eig << std::endl;
+
             x_i_candidate_eig.normalize();
 
             iDynTree::Direction x_i_candidate;
@@ -338,7 +390,7 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
     //distance along x_i from O_i to the intersection of the x_i and z_{i-1} axes
     iDynTree::Position x_i_z_i_minus_1_intersection_A, x_i_z_i_minus_1_intersection_B;
 
-    closestPoints(zAxis_i_minus_1
+    closestPoints(zAxis_i_minus_1,
                   xAxis_i,
                   x_i_z_i_minus_1_intersection_A,
                   x_i_z_i_minus_1_intersection_B,
@@ -347,7 +399,7 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
     //x_i and z_{i-1} should intersecate
     assert(checkIfAxesAreIncident(xAxis_i,zAxis_i_minus_1));
 
-    dhParams.A = -(toEigen(x_i_z_i_minus_1_intersection_B)-toEigen(origin_i)).dot(toEigen(xAxis_i.getDirection());
+    dhParams.A = -(toEigen(x_i_z_i_minus_1_intersection_B)-toEigen(origin_i)).dot(toEigen(xAxis_i.getDirection()));
 
     //calculation of d_i
     //distance along z_{i-1} from O_{i-1} to the intersection of the x_i and z_{i-1} axes
@@ -356,28 +408,97 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
     //calculation of alpha_i
     //angle between z_{i-1} and z_i measured about x_i
     double cos_alpha_i = toEigen(zAxis_i_minus_1.getDirection()).dot(toEigen(zAxis_i.getDirection()));
-    assert(((direction_axis_z_n_minus_1*direction_axis_z_n)*dh_direction_axis_x_n).Norm() < tol);
-    double sin_alpha_i = (toEigen(zAxis_i_minus_1.getDirection()).cross(toEigen(zAxis_i.getDirection()))).dot(toEigen(xAxis_i.getDirection());
-    assert( fabs(cos_alpha_i*cos_alpha_i + sin_alpha_i*sin_alpha_i - 1) < tol);
+    //assert(((direction_axis_z_n_minus_1*direction_axis_z_n)*dh_direction_axis_x_n).Norm() < tol);
+    double sin_alpha_i = (toEigen(zAxis_i_minus_1.getDirection()).cross(toEigen(zAxis_i.getDirection()))).dot(toEigen(xAxis_i.getDirection()));
+    //assert( fabs(cos_alpha_i*cos_alpha_i + sin_alpha_i*sin_alpha_i - 1) < tol);
 
     dhParams.Alpha = atan2(sin_alpha_i,cos_alpha_i);
 
     //calculation of theta_i
     //angle between x_{i-1} and x_i measure about z_{i-1}
     double cos_theta_i = toEigen(xAxis_i_minus_1.getDirection()).dot(toEigen(xAxis_i.getDirection()));
-    double sin_theta_i = (toEigen(xAxis_i_minus_1.getDirection()).cross(toEigen(xAxis_i.getDirection()))).dot(toEigen(zAxis_i_minus_1.getDirection());
+    double sin_theta_i = (toEigen(xAxis_i_minus_1.getDirection()).cross(toEigen(xAxis_i.getDirection()))).dot(toEigen(zAxis_i_minus_1.getDirection()));
     dhParams.Offset = atan2(sin_theta_i,cos_theta_i);
 
     return true;
 }
-*/
+
+
+bool transformFromAxes(const Axis xAxis,
+                       const Axis yAxis,
+                       const Axis zAxis,
+                             Transform& refFrame_H_frame,
+                             double tol=1e-6)
+{
+    std::cerr << "xAxis " << xAxis.toString() << std::endl;
+    std::cerr << "yAxis " << yAxis.toString() << std::endl;
+    std::cerr << "zAxis " << zAxis.toString() << std::endl;
+    // Check axis are consistent (they share the origin)
+    Position xyIntersectionOnX, xyIntersectionOnY, yzIntersectionOnY, yzIntersectionOnZ;
+    bool ok = closestPoints(xAxis, yAxis, xyIntersectionOnX, xyIntersectionOnY, tol);
+    if (!ok)
+    {
+        reportError("","transformFromAxes","xAxis is parallel with the yAxis");
+        return false;
+    }
+
+    ok = closestPoints(yAxis, zAxis, yzIntersectionOnY, yzIntersectionOnZ, tol);
+    if (!ok)
+    {
+        reportError("","transformFromAxes","yAxis is parallel with the zAxis");
+        return false;
+    }
+
+    if ((toEigen(xyIntersectionOnX)-toEigen(xyIntersectionOnY)).norm() > tol)
+    {
+        reportError("","transformFromAxes","x and y are not incident");
+        return false;
+    }
+
+    if ((toEigen(yzIntersectionOnY)-toEigen(yzIntersectionOnZ)).norm() > tol)
+    {
+        reportError("","transformFromAxes","x and y are not incident");
+        return false;
+    }
+
+    if ((toEigen(xyIntersectionOnX)-toEigen(yzIntersectionOnY)).norm() > tol)
+    {
+        reportError("","transformFromAxes","xy intersection is not coincident with yz intersection");
+        return false;
+    }
+
+    iDynTree::Direction zDirectionCheck;
+    toEigen(zDirectionCheck) = toEigen(xAxis.getDirection()).cross(toEigen(yAxis.getDirection()));
+    if (!zDirectionCheck.isParallel(zAxis.getDirection(),tol))
+    {
+        reportError("","transformFromAxes","x cross y is not parallel to z");
+        return false;
+    }
+
+    if ((toEigen(zDirectionCheck).dot(toEigen(zAxis.getDirection()))) < 0.0)
+    {
+        reportError("","transformFromAxes","x cross y is not in the same direction of z");
+        return false;
+    }
+
+    refFrame_H_frame.setPosition(xyIntersectionOnX);
+    iDynTree::Rotation rot;
+    toEigen(rot).block<3,1>(0,0) = toEigen(xAxis.getDirection());
+    toEigen(rot).block<3,1>(0,1) = toEigen(yAxis.getDirection());
+    toEigen(rot).block<3,1>(0,2) = toEigen(zAxis.getDirection());
+    refFrame_H_frame.setRotation(rot);
+
+    return true;
+}
 
 bool ExtractDHChainFromModel(const Model& model,
                              const std::string baseFrame,
                              const std::string eeFrame,
                                    DHChain& outputChain,
-                                   double tolerance = 1e-5)
+                                   double tolerance)
 {
+    bool globalOk = true;
+
     // We check that the frame exist
     if( model.getFrameIndex(baseFrame) == iDynTree::FRAME_INVALID_INDEX ||
         model.getFrameIndex(eeFrame) == iDynTree::FRAME_INVALID_INDEX )
@@ -441,9 +562,10 @@ bool ExtractDHChainFromModel(const Model& model,
     if( !ok )
     {
         reportError("","ExtractDHChainFromModel","Error in computing ForwardKinematics.");
+        return false;
     }
 
-    // Step 1: Locate and label the joint axes z_0 , . . . , z_{nrOfDofs−1} .
+    // Step 1: Locate and label the joint axes z_0 , . . . , z_{nrOfDofs-1} .
     // For simplicity, we express all the axes in the base frame
     size_t nrOFDHFrames = nrOfDofs+1;
     std::vector<iDynTree::Axis> zAxes(nrOFDHFrames);
@@ -466,6 +588,25 @@ bool ExtractDHChainFromModel(const Model& model,
             counter++;
         }
     }
+
+    assert(counter == nrOfDofs);
+
+    // If the chain do not have joints inside (degenerate case)
+    // just select the zAxis of the base frame
+    if (nrOfDofs == 0)
+    {
+        zAxes[0] = Axis(Direction(0,0,1.0),Position::Zero());
+    }
+
+    // Step 7 : the z_{nrOfDofs} is the zAxis of the end effecto frame
+    Transform base_H_endEffector = baseFrame_X_link(linkOfEEFrameIdx)*model.getFrameTransform(model.getFrameIndex(eeFrame));
+    zAxes[nrOfDofs] = base_H_endEffector*Axis(Direction(0,0,1.0),Position::Zero());
+
+    for (int i=0; i < nrOFDHFrames; i++)
+    {
+        std::cerr << " zAxes[" << i << "] : " << zAxes[i].toString() << std::endl;
+    }
+
 
     // We have the H0 transformation to account for the
     // transform between the base frame and the first frame (0)
@@ -528,29 +669,57 @@ bool ExtractDHChainFromModel(const Model& model,
     // (the z axis are already determined by the axes directions)
     for(size_t i=0; i < nrOfDofs; i++ )
     {
-        assert(fabs(axis_z_i[i].Norm()-1) < tol);
-        assert(fabs(axis_z_i[i+1].Norm()-1) < tol);
-        /*
-        calculateDH(zAxes[i],
-                    xAxes[i],
-                    dh_origin[i],
-                    zAxes[i+1],
-                    dh_origin[i+1],
-                    xAxes[i+1],
-                    yAxes[i+1],
-                    outputChain(i+1));*/
+        //assert(fabs(axis_z_i[i].Norm()-1) < tol);
+        //assert(fabs(axis_z_i[i+1].Norm()-1) < tol);
+
+        std::cerr << " zAxes[" << i << "] : " << zAxes[i].toString() << std::endl;
+        std::cerr << " zAxes[" << i+1 << "] : " << zAxes[i+1].toString() << std::endl;
+
+        DHLink dhLink;
+        bool ok = calculateDH(zAxes[i],
+                              xAxes[i],
+                              dh_origin[i],
+                              zAxes[i+1],
+                              Direction(1.0,0.0,0.0),
+                              dh_origin[i+1],
+                              xAxes[i+1],
+                              yAxes[i+1],
+                              dhLink);
+        outputChain(i) = dhLink;
+
+        std::cerr << " i : " << i << std::endl;
+        std::cerr << " xAxis[i+1] : " << xAxes[i+1].toString() << std::endl;
+        std::cerr << " yAxis[i+1] : " << yAxes[i+1].toString() << std::endl;
+
+
+        if (!ok)
+        {
+            std::cerr << i << std::endl;
+            reportError("","ExtractDHChainFromModel","Error in extracing dh parameters for one link of the chain");
+        }
+
+        globalOk = globalOk && ok;
     }
 
     // transform matrix from the 0th frame to the base frame
-    iDynTree::Transform base_H_0;
+    Transform base_H_0;
+    ok = transformFromAxes(xAxes[0],yAxes[0],zAxes[0],base_H_0);
+    globalOk = globalOk && ok;
+
+    outputChain.setH0(base_H_0);
 
     //transform from the end-effector to the N-th frame
-    iDynTree::Transform N_H_ee;
+    Transform base_H_N;
+    ok = transformFromAxes(xAxes[nrOfDofs],
+                           yAxes[nrOfDofs],
+                           zAxes[nrOfDofs],
+                           base_H_N);
+    globalOk = globalOk && ok;
 
-    // H0_kdl = KDL::Frame(KDL::Rotation(axis_x_i[0],axis_y_i[0],axis_z_i[0]),origin_O_i[0]);
+    Transform N_H_endEffector = base_H_N.inverse()*base_H_endEffector;
+    outputChain.setHN(N_H_endEffector);
 
-
-    return false;
+    return globalOk;
 }
 
 std::string inline intToString(const int inInt)
@@ -571,10 +740,13 @@ bool CreateModelFromDHChain(const DHChain& inputChain,
     iDynTree::Link linkDefault;
     linkDefault.setInertia(inertiaDefault);
 
-    // Then we create a base link
-    outputModel.addLink("link0",linkDefault);
+    std::string baseLinkName  = "link0";
 
-    std::string previousLinkName = "link0";
+
+    // Then we create a base link
+    outputModel.addLink(baseLinkName,linkDefault);
+
+    std::string previousLinkName = baseLinkName;
 
     for(int i=0; i<inputChain.getNrOfDOFs(); i++)
     {
@@ -583,26 +755,10 @@ bool CreateModelFromDHChain(const DHChain& inputChain,
 
         Transform parent_H_child;
         Axis rot_axis_in_parent_frame;
-        Axis axisOnZThroughOrigin = Axis(Direction(0,0,1.0),Position::Zero());
+        Axis axisOnZThroughOrigin = Axis(Direction(0,0,-1.0),Position::Zero());
         Transform dhTransform = TransformFromDH(inputChain(i).A,inputChain(i).Alpha,inputChain(i).D,inputChain(i).Offset);
-        if( i == 0 )
-        {
-            // account for H0
-            parent_H_child = inputChain.getH0()*dhTransform;
-            rot_axis_in_parent_frame = inputChain.getH0()*axisOnZThroughOrigin;
-        }
-        else if( i == inputChain.getNrOfDOFs()-1 )
-        {
-            // Normal case
-            parent_H_child = dhTransform*inputChain.getHN();
-            rot_axis_in_parent_frame = axisOnZThroughOrigin;
-        }
-        else
-        {
-            // Normal case
-            parent_H_child = dhTransform;
-            rot_axis_in_parent_frame = axisOnZThroughOrigin;
-        }
+        parent_H_child = dhTransform;
+        rot_axis_in_parent_frame = axisOnZThroughOrigin;
 
         RevoluteJoint addedJoint = RevoluteJoint(parent_H_child,rot_axis_in_parent_frame);
         outputModel.addJointAndLink(previousLinkName,
@@ -611,6 +767,10 @@ bool CreateModelFromDHChain(const DHChain& inputChain,
 
         previousLinkName = addedLinkName;
     }
+
+    // Add base and end effector additional frames, using the H0 and HN information
+    outputModel.addAdditionalFrameToLink(baseLinkName,"baseFrame",inputChain.getH0().inverse());
+    outputModel.addAdditionalFrameToLink("link"+intToString(inputChain.getNrOfDOFs()),"distalFrame",inputChain.getHN());
 
     return true;
 }

@@ -8,7 +8,7 @@
 #ifndef IDYNTREE_DENAVIT_HARTENBERG_H
 #define IDYNTREE_DENAVIT_HARTENBERG_H
 
-#include <iDynTree/Model/Indeces.h>
+#include <iDynTree/Model/Indices.h>
 #include <iDynTree/Model/Model.h>
 
 #include <iDynTree/Core/Transform.h>
@@ -67,15 +67,15 @@ public:
      * Create an iDynTree::Model from this DHChain.
      * \see CreateModelFromDHChain .
      */
-    bool toModel(Model & outputModel);
+    bool toModel(Model & outputModel) const;
 
     /**
      * Create a DHChain from a Model.
      * \see ExtractDHChainFromModel .
      */
     bool fromModel(const iDynTree::Model & model,
-                   const std::string baseFrame,
-                   const std::string eeFrame);
+                   std::string baseFrame,
+                   std::string eeFrame);
 };
 
 /*
@@ -124,7 +124,7 @@ public:
  *     theta(i)   = angle between X(i-1) to X(i) along X(i)
  * \endverbatim
  *
- * Function based on KDL's Frame::DH_Craig1989 method.
+ * Function compatible with KDL's Frame::DH_Craig1989 method.
  */
 Transform TransformFromDHCraig1989(double a,double alpha,double d,double theta);
 
@@ -135,7 +135,7 @@ Transform TransformFromDHCraig1989(double a,double alpha,double d,double theta);
  * notation for lower-pair mechanisms based on matrices, ASME
  * Journal of Applied Mechanics, 23:215-221, 1955.
  *
- * Function based on KDL's Frame::DH method.
+ * Function compatible on KDL's Frame::DH method.
  */
 Transform TransformFromDH(double a,double alpha,double d,double theta);
 
@@ -153,12 +153,15 @@ Transform TransformFromDH(double a,double alpha,double d,double theta);
 bool ExtractDHChainFromModel(const iDynTree::Model & model,
                              const std::string baseFrame,
                              const std::string eeFrame,
-                                   DHChain & outputChain);
+                                   DHChain & outputChain,
+                                   double tolerance = 1e-5);
 
 /**
  * Create an iDynTree::Model from a DHChain.
  *
- * \note The names of the links will be link0, link1, ... linkN .
+ * \note The names of the links will be link0, link1, ... linkN,
+ *       furthermore there are two additional frame for the base and endEffector frames,
+ *       named baseFrame and distalFrame .
  * \note The inertia of the links will be set to 1 kg in the origin of the link.
  *
  * @return true if all went ok, false otherwise.
