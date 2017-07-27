@@ -9,10 +9,6 @@ if(IDYNTREE_ENABLE_SYMORO_PAR AND IDYNTREE_USES_KDL)
     add_subdirectory(symoro)
 endif()
 
-if(IDYNTREE_USES_ICUB_MAIN)
-    add_subdirectory(iKin)
-endif()
-
 if(IDYNTREE_USES_ICUB_MAIN AND IDYNTREE_USES_KDL)
     add_subdirectory(iKin-kdl)
 endif()
