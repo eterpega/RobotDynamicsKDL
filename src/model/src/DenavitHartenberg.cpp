@@ -22,6 +22,7 @@ namespace iDynTree
 void DHChain::setNrOfDOFs(size_t nDofs)
 {
     dhParams.resize(nDofs);
+    dofNames.resize(nDofs);
 }
 
 size_t iDynTree::DHChain::getNrOfDOFs() const
@@ -58,6 +59,19 @@ const iDynTree::DHLink& iDynTree::DHChain::operator()(const size_t i) const
 {
     return dhParams[i];
 }
+
+void DHChain::setDOFName(size_t dofIdx, const std::string &dofName)
+{
+    assert(dofIdx < dofNames.size());
+    dofNames[dofIdx] = dofName;
+}
+
+std::string DHChain::getDOFName(size_t dofIdx) const
+{
+    assert(dofIdx < dofNames.size());
+    return dofNames[dofIdx];
+}
+
 
 bool DHChain::fromModel(const Model& model,
                         std::string baseFrame,
@@ -127,12 +141,8 @@ bool closestPoints(const iDynTree::Axis line_A,
       closest_point_line_A is P_C
       closest_point_line_B is Q_C
     */
-    /*
-    cerr << "origin_line_A: " << origin_line_A << std::endl;
-    cerr << "origin_line_B: " << origin_line_B << std::endl;
-    cerr << "direction_line_A: " << direction_line_A << std::endl;
-    cerr << "direction_line_B: " << direction_line_B << std::endl;
-    */
+
+
     Eigen::Vector3d origin_line_A = toEigen(line_A.getOrigin());
     Eigen::Vector3d origin_line_B = toEigen(line_B.getOrigin());
     Eigen::Vector3d direction_line_A = toEigen(line_A.getDirection());
@@ -211,9 +221,6 @@ bool checkIfAxesAreCoincident(const iDynTree::Axis line_A,
 {
     bool areAxesIncident = checkIfAxesAreIncident(line_A, link_B, tol);
     bool areDirectionParallel = line_A.getDirection().isParallel(link_B.getDirection(), tol);
-    std::cerr << "areAxesIncident " << areAxesIncident << std::endl;
-    std::cerr << "areDirectionParallel " << areDirectionParallel << std::endl;
-
     return areAxesIncident && areDirectionParallel;
 }
 
@@ -248,9 +255,6 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
                        double tol = 1e-6,
                        int verbose = 0)
 {
-    std::cerr << "zAxis_i_minus_1 " << zAxis_i_minus_1.toString() << std::endl;
-    std::cerr << "zAxis_i " << zAxis_i.toString() << std::endl;
-
     // STEP 3 : Locate O_i (the origin of i-th frame)
     //          Locate the origin O_i where the common normal to z_i and z_{i-1} intersects
     //          z_i . If z_i intersects z_{i-1}, locate O_i at this intersection. If z_i and
@@ -282,20 +286,12 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
     xAxis_i.setOrigin(origin_i);
     yAxis_i.setOrigin(origin_i);
 
-    std::cerr << "zAxis_i_minus_1 " << zAxis_i_minus_1.toString() << std::endl;
-    std::cerr << "zAxis_i " << zAxis_i.toString() << std::endl;
-
     //
     // We check if z_i and z_i-1 are incident
     //
     bool zAxes_incident = checkIfAxesAreIncident(zAxis_i_minus_1,zAxis_i);
 
     bool zAxes_coincident = checkIfAxesAreCoincident(zAxis_i_minus_1,zAxis_i);
-
-    std::cerr << "zAxis_i_minus_1 " << zAxis_i_minus_1.toString() << std::endl;
-    std::cerr << "zAxis_i " << zAxis_i.toString() << std::endl;
-    std::cerr << "zAxes_incident: " << zAxes_incident << std::endl;
-    std::cerr << "zAxes_coincident: " << zAxes_coincident << std::endl;
 
     //STEP 4 : Establish the direction of x axis of the i-th frame
     //         Establish x_i along the common normal between z_{i-1} and z_i throught O_i,
@@ -357,8 +353,6 @@ bool calculateDH(const iDynTree::Axis zAxis_i_minus_1,
             iDynTree::Direction direction_axis_z_i = zAxis_i.getDirection();
             Eigen::Vector3d direction_axis_z_i_eig = toEigen(direction_axis_z_i);
             Eigen::Vector3d x_i_candidate_eig = toEigen(xAxis_n_direction_hint)- toEigen(xAxis_n_direction_hint).dot(direction_axis_z_i_eig)*direction_axis_z_i_eig;
-
-            std::cerr << x_i_candidate_eig << std::endl;
 
             x_i_candidate_eig.normalize();
 
@@ -428,11 +422,8 @@ bool transformFromAxes(const Axis xAxis,
                        const Axis yAxis,
                        const Axis zAxis,
                              Transform& refFrame_H_frame,
-                             double tol=1e-6)
+                             double tol=1e-5)
 {
-    std::cerr << "xAxis " << xAxis.toString() << std::endl;
-    std::cerr << "yAxis " << yAxis.toString() << std::endl;
-    std::cerr << "zAxis " << zAxis.toString() << std::endl;
     // Check axis are consistent (they share the origin)
     Position xyIntersectionOnX, xyIntersectionOnY, yzIntersectionOnY, yzIntersectionOnZ;
     bool ok = closestPoints(xAxis, yAxis, xyIntersectionOnX, xyIntersectionOnY, tol);
@@ -565,48 +556,50 @@ bool ExtractDHChainFromModel(const Model& model,
         return false;
     }
 
-    // Step 1: Locate and label the joint axes z_0 , . . . , z_{nrOfDofs-1} .
+    // Step 1: Locate and label the joint axes z_1 , . . . , z_{nrOfDofs} .
     // For simplicity, we express all the axes in the base frame
     size_t nrOFDHFrames = nrOfDofs+1;
     std::vector<iDynTree::Axis> zAxes(nrOFDHFrames);
     std::vector<iDynTree::Axis> xAxes(nrOFDHFrames);
     std::vector<iDynTree::Axis> yAxes(nrOFDHFrames);
+    std::vector<iDynTree::Position> dh_origin(nrOFDHFrames);
 
-    size_t counter = 0;
+    // If we count the joints as joint 1 , joint 2 ... joint nrOfDofs,
+    // the zAxis of frame i is associated with the joint i+1
+    size_t counter = nrOfDofs;
     for(LinkIndex visitedLinkIdx = linkOfEEFrameIdx;
         visitedLinkIdx != linkOfBaseFrameIdx;
         visitedLinkIdx = traversal.getParentLinkFromLinkIndex(visitedLinkIdx)->getIndex())
     {
         IJointConstPtr joint = traversal.getParentJointFromLinkIndex(visitedLinkIdx);
+        std::string jointName = model.getJointName(joint->getIndex());
         bool isRevoluteJoint =
             ( dynamic_cast<const RevoluteJoint*>(joint) != 0 );
 
         if( isRevoluteJoint )
         {
             const RevoluteJoint * revJoint = dynamic_cast<const RevoluteJoint*>(joint);
-            zAxes[counter] = baseFrame_X_link(visitedLinkIdx)*revJoint->getAxis(visitedLinkIdx);
-            counter++;
+            zAxes[counter-1] = baseFrame_X_link(visitedLinkIdx)*revJoint->getAxis(visitedLinkIdx);
+            outputChain.setDOFName(counter-1, jointName);
+            if (revJoint->hasPosLimits())
+            {
+                outputChain(counter-1).Max = revJoint->getMaxPosLimit(0);
+                outputChain(counter-1).Min = revJoint->getMinPosLimit(0);
+            }
+            else
+            {
+                outputChain(counter-1).Max =  std::numeric_limits<double>::infinity();
+                outputChain(counter-1).Min = -std::numeric_limits<double>::infinity();
+            }
+            counter--;
         }
     }
 
-    assert(counter == nrOfDofs);
+    assert(counter == 0);
 
-    // If the chain do not have joints inside (degenerate case)
-    // just select the zAxis of the base frame
-    if (nrOfDofs == 0)
-    {
-        zAxes[0] = Axis(Direction(0,0,1.0),Position::Zero());
-    }
-
-    // Step 7 : the z_{nrOfDofs} is the zAxis of the end effecto frame
+    // Step 7 : the z_{nrOfDofs} is the zAxis of the end effector frame
     Transform base_H_endEffector = baseFrame_X_link(linkOfEEFrameIdx)*model.getFrameTransform(model.getFrameIndex(eeFrame));
     zAxes[nrOfDofs] = base_H_endEffector*Axis(Direction(0,0,1.0),Position::Zero());
-
-    for (int i=0; i < nrOFDHFrames; i++)
-    {
-        std::cerr << " zAxes[" << i << "] : " << zAxes[i].toString() << std::endl;
-    }
-
 
     // We have the H0 transformation to account for the
     // transform between the base frame and the first frame (0)
@@ -654,10 +647,8 @@ bool ExtractDHChainFromModel(const Model& model,
     assert(xDirection0.isPerpendicular(zAxes[0].getDirection(),tolerance));
     assert(yDirection0.isPerpendicular(zAxes[0].getDirection(),tolerance));
 
-    // The origin of each DH frame is assigned when computing the DH parameters
-    std::vector<Position> dh_origin(nrOFDHFrames);
-
-    // For the first one, we are free to choose it
+    // We must select the origin, the x and y axis of dh_0 frame so we can initialize the recursive procedure that identifies
+    // the origin, x and y of each dh frame (the z axis are already determined by the axes directions)
     dh_origin[0] = zAxes[0].getOrigin();
     xAxes[0].setOrigin(dh_origin[0]);
     xAxes[0].setDirection(xDirection0);
@@ -666,16 +657,9 @@ bool ExtractDHChainFromModel(const Model& model,
 
     // We actually compute the DH parameters
     // and select the origin, x and y axis of the DH frames
-    // (the z axis are already determined by the axes directions)
     for(size_t i=0; i < nrOfDofs; i++ )
     {
-        //assert(fabs(axis_z_i[i].Norm()-1) < tol);
-        //assert(fabs(axis_z_i[i+1].Norm()-1) < tol);
-
-        std::cerr << " zAxes[" << i << "] : " << zAxes[i].toString() << std::endl;
-        std::cerr << " zAxes[" << i+1 << "] : " << zAxes[i+1].toString() << std::endl;
-
-        DHLink dhLink;
+        DHLink dhLink = outputChain(i);
         bool ok = calculateDH(zAxes[i],
                               xAxes[i],
                               dh_origin[i],
@@ -687,14 +671,9 @@ bool ExtractDHChainFromModel(const Model& model,
                               dhLink);
         outputChain(i) = dhLink;
 
-        std::cerr << " i : " << i << std::endl;
-        std::cerr << " xAxis[i+1] : " << xAxes[i+1].toString() << std::endl;
-        std::cerr << " yAxis[i+1] : " << yAxes[i+1].toString() << std::endl;
-
 
         if (!ok)
         {
-            std::cerr << i << std::endl;
             reportError("","ExtractDHChainFromModel","Error in extracing dh parameters for one link of the chain");
         }
 
@@ -750,12 +729,12 @@ bool CreateModelFromDHChain(const DHChain& inputChain,
 
     for(int i=0; i<inputChain.getNrOfDOFs(); i++)
     {
-        std::string addedJointName = "joint"+intToString(i);
+        std::string addedJointName = inputChain.getDOFName(i);
         std::string addedLinkName = "link"+intToString(i+1);
 
         Transform parent_H_child;
         Axis rot_axis_in_parent_frame;
-        Axis axisOnZThroughOrigin = Axis(Direction(0,0,-1.0),Position::Zero());
+        Axis axisOnZThroughOrigin = Axis(Direction(0.0,0.0,1.0),Position::Zero());
         Transform dhTransform = TransformFromDH(inputChain(i).A,inputChain(i).Alpha,inputChain(i).D,inputChain(i).Offset);
         parent_H_child = dhTransform;
         rot_axis_in_parent_frame = axisOnZThroughOrigin;

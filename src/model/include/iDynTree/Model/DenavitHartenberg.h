@@ -29,6 +29,8 @@ struct DHLink
    double D;
    double Alpha;
    double Offset;
+   double Min;
+   double Max;
 };
 
 /**
@@ -42,6 +44,7 @@ private:
     Transform H0;
     std::vector<DHLink> dhParams;
     Transform HN;
+    std::vector<std::string> dofNames;
 
 public:
     void   setNrOfDOFs(size_t nDofs);
@@ -62,6 +65,16 @@ public:
      * Return a reference to the i-th link of the chain (const version).
      */
     const DHLink & operator() (const size_t i) const;
+
+    /**
+     * Get the name of the i-th DOF.
+     */
+    std::string getDOFName(size_t dofIdx) const;
+
+    /**
+     * Get the name of the i-th DOF.
+     */
+    void setDOFName(size_t dofIdx, const std::string &dofName);
 
     /**
      * Create an iDynTree::Model from this DHChain.
