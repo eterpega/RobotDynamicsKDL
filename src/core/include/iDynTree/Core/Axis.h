@@ -128,6 +128,11 @@ namespace iDynTree
         bool isParallel(const Axis & otherAxis, const double tolerance) const;
 
         /**
+         * Return the axis with the same origin, but reversed direction.
+         */
+        Axis reverse() const;
+
+        /**
          * @name Output helpers.
          *  Output helpers.
          */

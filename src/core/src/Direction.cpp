@@ -100,6 +100,14 @@ namespace iDynTree
         }
     }
 
+    Direction Direction::reverse() const
+    {
+        return Direction(-this->m_data[0],
+                         -this->m_data[1],
+                         -this->m_data[2]);
+    }
+
+
     std::string Direction::toString() const
     {
         std::stringstream ss;

@@ -83,6 +83,12 @@ namespace iDynTree
         bool isPerpendicular(const Direction & otherDirection, double tolerance) const;
 
         /**
+         * Return the direction, i.e. return its opposite.
+         *
+         */
+        Direction reverse() const;
+
+        /**
          * @name Output helpers.
          *  Output helpers.
          */

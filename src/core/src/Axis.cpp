@@ -250,6 +250,11 @@ namespace iDynTree
         return this->direction.isParallel(otherAxis.direction,tolerance);
     }
 
+    Axis Axis::reverse() const
+    {
+        return Axis(this->getDirection().reverse(),
+                    this->getOrigin());
+    }
 
     std::string Axis::toString() const
     {

@@ -185,7 +185,7 @@ Axis RevoluteJoint::getAxis(const LinkIndex linkA) const
 {
     if( linkA == link1 )
     {
-        return rotation_axis_wrt_link1;
+        return rotation_axis_wrt_link1.reverse();
     }
     else
     {
