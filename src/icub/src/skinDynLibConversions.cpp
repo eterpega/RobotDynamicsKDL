@@ -203,27 +203,38 @@ bool fromSkinDynLibToiDynTreeHelper(const Model& model,
         toiDynTree(it->getCoP(),skinFrame_contactPoint);
         unknownWrench.contactPoint = link_H_skinDynLibFrame*skinFrame_contactPoint;
 
-        if(it->isForceDirectionKnown())
+        if(it->isWrenchKnown())//flag to know if we should trust skin estimation
         {
-            //1 UNKNOWN
-            unknownWrench.unknownType = PURE_FORCE_WITH_KNOWN_DIRECTION;
-            Direction skinDynLibDirection;
-            toiDynTree(it->getForceDirection(),skinDynLibDirection);
-
-            // The direction of the force will be expressed in the skinDynLib orientation
-            // we need to convert it in the link frame orientation
-            unknownWrench.forceDirection = link_H_skinDynLibFrame*skinDynLibDirection;
+            unknownWrench.unknownType = NO_UNKNOWNS;
+            Wrench skinDynWrench;
+            toiDynTree(it->getForceMoment(),skinDynWrench);
+            unknownWrench.knownWrench  =link_H_skinDynLibFrame*skinDynWrench;
         }
         else
         {
-            if(it->isMomentKnown())
+
+            if(it->isForceDirectionKnown())
             {
-                unknownWrench.unknownType = PURE_FORCE;
+                //1 UNKNOWN
+                unknownWrench.unknownType = PURE_FORCE_WITH_KNOWN_DIRECTION;
+                Direction skinDynLibDirection;
+                toiDynTree(it->getForceDirection(),skinDynLibDirection);
+
+                // The direction of the force will be expressed in the skinDynLib orientation
+                // we need to convert it in the link frame orientation
+                unknownWrench.forceDirection = link_H_skinDynLibFrame*skinDynLibDirection;
             }
             else
             {
-                //6 UNKNOWN
-                unknownWrench.unknownType = FULL_WRENCH;
+                if(it->isMomentKnown())
+                {
+                    unknownWrench.unknownType = PURE_FORCE;
+                }
+                else
+                {
+                    //6 UNKNOWN
+                    unknownWrench.unknownType = FULL_WRENCH;
+                }
             }
         }
 
