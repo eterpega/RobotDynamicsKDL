@@ -203,7 +203,7 @@ bool fromSkinDynLibToiDynTreeHelper(const Model& model,
         toiDynTree(it->getCoP(),skinFrame_contactPoint);
         unknownWrench.contactPoint = link_H_skinDynLibFrame*skinFrame_contactPoint;
 
-        if(it->isWrenchKnown())//flag to know if we should trust skin estimation
+        if(it->isForceMomentKnown())//flag to know if we should trust skin estimation
         {
             unknownWrench.unknownType = NO_UNKNOWNS;
             Wrench skinDynWrench;
