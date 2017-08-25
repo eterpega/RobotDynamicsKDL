@@ -666,6 +666,9 @@ bool estimateExternalWrenches(const Model& model,
         // Now we compute the A matrix
         computeMatrixOfEstimationEquationAndExtWrenchKnownTerms(model,subModelTraversal,unknownWrenches,jointPos,sm,bufs);
 
+        // If A has no unkowns then pseudoInverse can not be computed
+        if (bufs.A[sm].rows() > 0 && bufs.A[sm].cols() >0){
+        
         // Now we compute the pseudo inverse
         pseudoInverse(toEigen(bufs.A[sm]),
                       toEigen(bufs.pinvA[sm]),
@@ -673,6 +676,7 @@ bool estimateExternalWrenches(const Model& model,
 
         // Now we compute the unknowns
         toEigen(bufs.x[sm]) = toEigen(bufs.pinvA[sm])*toEigen(bufs.b[sm]);
+        }
 
         // We copy the estimated unknowns in the outputContactWrenches
         // Note that the logic of conversion between input/output contacts should be
