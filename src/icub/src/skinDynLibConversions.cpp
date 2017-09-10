@@ -208,7 +208,11 @@ bool fromSkinDynLibToiDynTreeHelper(const Model& model,
             unknownWrench.unknownType = NO_UNKNOWNS;
             Wrench skinDynWrench;
             toiDynTree(it->getForceMoment(),skinDynWrench);
+            std::cerr << "[Debug] skinDynLibConversionsHelper::fromSkinDynLibToiDynTree wrench read from skin "<<std::endl << skinDynWrench.toString() << std::endl;
+
             unknownWrench.knownWrench  =link_H_skinDynLibFrame*skinDynWrench;
+            std::cerr << "[Debug] skinDynLibConversionsHelper::fromSkinDynLibToiDynTree wrench read from skin in link frame "<<std::endl << unknownWrench.knownWrench.toString() << std::endl;
+
         }
         else
         {
