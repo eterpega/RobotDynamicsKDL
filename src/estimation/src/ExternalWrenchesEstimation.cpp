@@ -275,6 +275,15 @@ Wrench getMeasuredWrench(const SensorsList & sensor_list,
         // this function return a zero wrench
         sens->getWrenchAppliedOnLink(link_id,measured_wrench_by_sensor,measured_wrench_on_link);
 
+        double wrenchSum=0;
+        for (int i=0;i<6;i++)
+        {
+            wrenchSum+=measured_wrench_on_link.asVector().getVal(i);
+         }
+        if (wrenchSum!=0)
+        {
+        std::cerr << "[Debug] " << " :: " << getMeasuredWrench << " : The value of "<<sens->getName()<<" wrench on the link "<<link_id<<" is " << measured_wrench_on_link.toString() <<  "\n";
+        }
         //Sum the given wrench to the return value
         total_measured_applied_wrench = total_measured_applied_wrench+measured_wrench_on_link;
     }
@@ -474,8 +483,11 @@ void computeMatrixOfEstimationEquationAndExtWrenchKnownTerms(const Model& model,
              // so we need to compute the transform between a frame with the orientation
              // of the link frame and the origin given by the contact point
              const Transform & subModelBase_H_link = bufs.subModelBase_H_link(visitedLinkIndex);
-             Transform link_H_contact = Transform(Rotation::Identity(),unknownWrench.contactPoint);
+             Transform link_H_contact = Transform(Rotation::Identity(),unknownWrench.contactPoint); // TODO: probably wrong since wrenches form skin are in the dh frame not in contact frame
              Transform subModelBase_H_contact = subModelBase_H_link*link_H_contact;
+
+             std::cerr << "[Debug] " << " :: " << "transformation matrixes base to link "<<visitedLinkIndex<<" in submodel " <<subModelIndex << " \n " << subModelBase_H_link.asHomogeneousTransform().toString()<<" \n";
+
 
              switch( unknownWrench.unknownType )
              {
@@ -502,6 +514,7 @@ void computeMatrixOfEstimationEquationAndExtWrenchKnownTerms(const Model& model,
                  {
                      //why is it only using subModelBase_H_link instead of subModelBase_H_contact
                      toEigen(bufs.b[subModelIndex]) += -toEigen(subModelBase_H_link*(unknownWrench.knownWrench));
+                     std::cerr << "[Debug] " << " :: " << " wrench read at no unkowns " <<(subModelBase_H_link*(unknownWrench.knownWrench)).toString();
                  }
                      break;
                  default:
@@ -599,6 +612,7 @@ bool estimateExternalWrenchesWithoutInternalFT(const Model& model,
    // \todo pimp up performance as done in RNEADynamicPhase
    Wrench knownTerms = computeKnownTermsOfEstimationEquationWithoutInternalFT(model,traversal,
                                                                               jointPos,linkVel,linkProperAcc,bufs);
+   std::cerr << "[Debug] " << " :: " << "Known terms vaues "<< knownTerms.toString()<<  "\n";;
 
    // All the methods are designed to act on submodels, but in this case
    // we are considering the full model
