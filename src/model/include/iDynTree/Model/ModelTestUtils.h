@@ -69,7 +69,10 @@ inline void addRandomLinkToModel(Model & model, std::string parentLink, std::str
     }
     else if( jointType == 1 )
     {
-        RevoluteJoint revJoint(parentLinkIndex,newLinkIndex,getRandomTransform(),getRandomAxis());
+        RevoluteJoint revJoint;
+        revJoint.setAttachedLinks(parentLinkIndex,newLinkIndex);
+        revJoint.setRestTransform(getRandomTransform());
+        revJoint.setAxis(getRandomAxis(),newLinkIndex);
         model.addJoint(newLinkName+"joint",&revJoint);
     }
     else
@@ -158,10 +161,11 @@ inline Model getRandomChain(unsigned int nrOfJoints, size_t nrOfAdditionalFrames
 
 /**
  * Get random joint position consistently with the limits of the model.
+ * If the input vector has the wrong size, it will be resized.
  */
 inline void getRandomJointPositions(VectorDynSize& vec, const Model& model)
 {
-    assert(vec.size() == model.getNrOfPosCoords());
+    vec.resize(model.getNrOfPosCoords());
     for(JointIndex jntIdx=0; jntIdx < model.getNrOfJoints(); jntIdx++)
     {
         IJointConstPtr jntPtr = model.getJoint(jntIdx);
@@ -195,8 +199,8 @@ inline bool getRandomInverseDynamicsInputs(FreeFloatingPos& pos,
                                            FreeFloatingAcc& acc,
                                            LinkNetExternalWrenches& extWrenches)
 {
-    pos.worldBasePos() =  getRandomTransform();
-    vel.baseVel() = getRandomTwist();
+    pos.worldBasePos() = getRandomTransform();
+    vel.baseVel() =  getRandomTwist();
     acc.baseAcc() =  getRandomTwist();
 
 

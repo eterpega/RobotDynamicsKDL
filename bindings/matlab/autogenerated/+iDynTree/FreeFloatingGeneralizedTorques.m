@@ -9,26 +9,26 @@ classdef FreeFloatingGeneralizedTorques < SwigRef
           self.swigPtr = varargin{1}.swigPtr;
         end
       else
-        tmp = iDynTreeMEX(1146, varargin{:});
+        tmp = iDynTreeMEX(1166, varargin{:});
         self.swigPtr = tmp.swigPtr;
         tmp.swigPtr = [];
       end
     end
     function varargout = resize(self,varargin)
-      [varargout{1:nargout}] = iDynTreeMEX(1147, self, varargin{:});
+      [varargout{1:nargout}] = iDynTreeMEX(1167, self, varargin{:});
     end
     function varargout = baseWrench(self,varargin)
-      [varargout{1:nargout}] = iDynTreeMEX(1148, self, varargin{:});
+      [varargout{1:nargout}] = iDynTreeMEX(1168, self, varargin{:});
     end
     function varargout = jointTorques(self,varargin)
-      [varargout{1:nargout}] = iDynTreeMEX(1149, self, varargin{:});
+      [varargout{1:nargout}] = iDynTreeMEX(1169, self, varargin{:});
     end
     function varargout = getNrOfDOFs(self,varargin)
-      [varargout{1:nargout}] = iDynTreeMEX(1150, self, varargin{:});
+      [varargout{1:nargout}] = iDynTreeMEX(1170, self, varargin{:});
     end
     function delete(self)
       if self.swigPtr
-        iDynTreeMEX(1151, self);
+        iDynTreeMEX(1171, self);
         self.swigPtr=[];
       end
     end

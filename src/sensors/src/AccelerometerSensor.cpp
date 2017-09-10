@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2015 Fondazione Istituto Italiano di Tecnologia
- * Author: Naveen Kuppuswamy
- * email:  naveen.kuppuswamyt@iit.it
+ * Copyright (C) 2017 Fondazione Istituto Italiano di Tecnologia
+ * Author: Silvio Traversaro
+ * email:  silvio.traversaro@iit.it
  * Permission is granted to copy, distribute, and/or modify this program
  * under the terms of the GNU General Public License, version 2 or any
  * later version published by the Free Software Foundation.
