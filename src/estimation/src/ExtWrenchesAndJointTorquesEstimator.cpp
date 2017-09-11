@@ -408,11 +408,11 @@ bool ExtWrenchesAndJointTorquesEstimator::estimateExtWrenchesAndJointTorques(con
     /**
      * Compute net external wrenches
      */
-    std::cerr << "[Debug] " << " :: " << " estimateExtWrenchesAndJointTorques : The value of m_linkNetExternalWrenches before computeNet \n" <<m_linkNetExternalWrenches.toString(m_model) <<  "\n";
+    //std::cerr << "[Debug] " << " :: " << " estimateExtWrenchesAndJointTorques : The value of m_linkNetExternalWrenches before computeNet \n" <<m_linkNetExternalWrenches.toString(m_model) <<  "\n";
 
     ok = ok && estimateContactWrenches.computeNetWrenches(m_linkNetExternalWrenches);
 
-    std::cerr << "[Debug] " << " :: " << " estimateExtWrenchesAndJointTorques : The value of m_linkNetExternalWrenches after computeNet \n" <<m_linkNetExternalWrenches.toString(m_model) <<  "\n";
+    //std::cerr << "[Debug] " << " :: " << " estimateExtWrenchesAndJointTorques : The value of m_linkNetExternalWrenches after computeNet \n" <<m_linkNetExternalWrenches.toString(m_model) <<  "\n";
 
 
     if( !ok )

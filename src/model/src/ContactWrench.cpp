@@ -121,10 +121,13 @@ bool LinkContactWrenches::computeNetWrenches(LinkNetExternalWrenches& netWrenche
             // and with the orientation of the link frame, so we need to translate it
             // to the link frame
             const ContactWrench & contact = this->contactWrench(l,c);
+            std::cerr << "[Debug] " << " :: " << "computeNetWrenches: in link "<< l << "\n" <<contact.contactWrench().toString();                
 
             Transform link_H_contact(Rotation::Identity(),contact.contactPoint());
 
             Wrench link_wrench_due_to_contact = link_H_contact*contact.contactWrench();
+            
+            std::cerr << "[Debug] " << " :: " << "computeNetWrenches: in link after translation with contactPoint "<< l << "\n" <<link_wrench_due_to_contact.toString();
 
             netWrenches(l) = netWrenches(l) + link_wrench_due_to_contact;
         }
